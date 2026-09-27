@@ -1,36 +1,42 @@
-import asyncio
 import re
-import threading
 
+import httpx
 import numpy as np
 from django.conf import settings
 from pgvector.django import CosineDistance
 
 from .models import Chunk, Document
 
-# ── Embedding (local, CPU) ───────────────────────────────────────────────
-_model = None
-_model_lock = threading.Lock()
+SUPPORTED = (".pdf", ".txt", ".md", ".docx")
+
+# ── Embedding (calls the embeddings process, which holds the model) ──────
+_sync: httpx.Client | None = None
+_async: httpx.AsyncClient | None = None
+EMBED_PATH = "/api/v1/internal/embed/"
 
 
-def _get_model():
-    global _model
-    if _model is None:
-        with _model_lock:
-            if _model is None:
-                from fastembed import TextEmbedding
-                _model = TextEmbedding(
-                    model_name=settings.EMBEDDING_MODEL,
-                    cache_dir=settings.FASTEMBED_CACHE_DIR,
-                )
-    return _model
+def _headers() -> dict:
+    return {"Authorization": f"Bearer {settings.INTERNAL_TOKEN}"}
 
 
-def embed(texts: list[str]) -> np.ndarray:
-    """Sync + CPU-bound. Returns an L2-normalized float32 matrix."""
-    vecs = np.array(list(_get_model().embed(texts)), dtype=np.float32)
-    vecs /= np.linalg.norm(vecs, axis=1, keepdims=True).clip(min=1e-9)
-    return vecs
+def embed(texts: list[str], kind: str = "passage") -> np.ndarray:
+    """Sync, for Celery. Returns an L2-normalized float32 matrix."""
+    global _sync
+    if _sync is None:
+        _sync = httpx.Client(base_url=settings.EMBEDDER_URL, timeout=300, trust_env=False)
+    r = _sync.post(EMBED_PATH, json={"texts": texts, "kind": kind}, headers=_headers())
+    r.raise_for_status()
+    return np.array(r.json()["vectors"], dtype=np.float32)
+
+
+async def aembed(texts: list[str], kind: str = "query") -> np.ndarray:
+    """Async, for chat requests."""
+    global _async
+    if _async is None:
+        _async = httpx.AsyncClient(base_url=settings.EMBEDDER_URL, timeout=30, trust_env=False)
+    r = await _async.post(EMBED_PATH, json={"texts": texts, "kind": kind}, headers=_headers())
+    r.raise_for_status()
+    return np.array(r.json()["vectors"], dtype=np.float32)
 
 
 # ── Streaming extraction + chunking (used by the Celery task) ────────────
@@ -45,8 +51,16 @@ def iter_pages(path: str, filename: str):
     elif name.endswith((".txt", ".md")):
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             yield None, f.read()
+    elif name.endswith(".docx"):
+        import docx  # pip install python-docx
+        d = docx.Document(path)
+        parts = [p.text for p in d.paragraphs]
+        for t in d.tables:
+            for row in t.rows:
+                parts.append(" | ".join(c.text for c in row.cells))
+        yield None, "\n".join(parts)
     else:
-        raise ValueError("Only PDF, TXT and MD files are supported")
+        raise ValueError("Only PDF, TXT, MD and DOCX files are supported")
 
 
 def chunk_text(text: str) -> list[str]:
@@ -89,7 +103,7 @@ async def retrieve(key_id: int, question: str) -> list[str]:
     if not await ready.aexists():          # no documents: skip embedding entirely
         return []
 
-    q = (await asyncio.to_thread(embed, [question]))[0]
+    q = (await aembed([question], "query"))[0]
     rows = [
         r async for r in
         Chunk.objects.filter(api_key_id=key_id, document__status=Document.Status.READY)

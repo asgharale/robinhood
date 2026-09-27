@@ -7,6 +7,9 @@ from ninja import Field, NinjaAPI, Schema
 from ninja.errors import HttpError
 from ninja.security import HttpBearer
 
+from embeddings.api import router as embed_router
+
+from .admin_api import router as admin_router
 from .models import ApiKey, Conversation
 from .services import chat_once, run_turn
 
@@ -23,6 +26,10 @@ class ApiKeyAuth(HttpBearer):
 
 
 api = NinjaAPI(title="Robinhood AI Gateway", version="1", auth=ApiKeyAuth())
+
+# Routers with their own auth (they ignore the API-key auth above)
+api.add_router("/admin/", admin_router)        # ADMIN_API_TOKEN
+api.add_router("/internal/", embed_router)     # INTERNAL_TOKEN, answers only in the embedder process
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────
@@ -82,6 +89,10 @@ class MeOut(Schema):
     used_today: int
     remaining_today: int
     per_minute_limit: int
+
+
+class PromptIO(Schema):
+    system_prompt: str = Field("", max_length=2000)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -171,3 +182,11 @@ async def me(request):
         "remaining_today": max(0, key.daily_limit - used),
         "per_minute_limit": key.per_minute_limit,
     }
+
+
+@api.put("/me/system-prompt/", response=PromptIO)
+async def set_system_prompt(request, payload: PromptIO):
+    key = request.auth
+    key.system_prompt = payload.system_prompt
+    await key.asave(update_fields=["system_prompt"])
+    return payload

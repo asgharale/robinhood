@@ -17,6 +17,10 @@ class ApiKey(models.Model):
     per_minute_limit = models.PositiveIntegerField(default=10)   # LLM requests / minute
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
+    system_prompt = models.TextField(blank=True, max_length=2000)
+    can_manage_documents = models.BooleanField(default=False)
+    max_documents = models.PositiveIntegerField(default=20)
+    max_storage_mb = models.PositiveIntegerField(default=200)
 
     def rotate(self):
         self.key = generate_key()
@@ -86,7 +90,7 @@ class Chunk(models.Model):
     position = models.PositiveIntegerField()
     page = models.PositiveIntegerField(null=True, blank=True)
     text = models.TextField()
-    embedding = VectorField(dimensions=384)   # must match EMBEDDING_MODEL's output size
+    embedding = VectorField(dimensions=1024)   # must match EMBEDDING_MODEL's output size
 
     class Meta:
         indexes = [

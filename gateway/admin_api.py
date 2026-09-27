@@ -1,14 +1,15 @@
+import secrets
 from datetime import datetime
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from ninja import File, Router, Schema, UploadedFile
 from ninja.errors import HttpError
+from ninja.security import HttpBearer
 
 from .models import ApiKey, Document
+from .rag import SUPPORTED
 from .tasks import ingest_document
-import secrets
-from ninja.security import HttpBearer
 
 
 class AdminTokenAuth(HttpBearer):
@@ -20,7 +21,6 @@ class AdminTokenAuth(HttpBearer):
 
 
 router = Router(auth=AdminTokenAuth(), tags=["admin"])
-ALLOWED = (".pdf", ".txt", ".md")
 
 
 class DocumentOut(Schema):
@@ -43,8 +43,8 @@ async def _get_key(key_id: int) -> ApiKey:
 @router.post("/keys/{int:key_id}/documents/", response={202: DocumentOut})
 async def upload_document(request, key_id: int, file: UploadedFile = File(...)):
     key = await _get_key(key_id)
-    if not file.name.lower().endswith(ALLOWED):
-        raise HttpError(422, "Only PDF, TXT and MD files are supported")
+    if not file.name.lower().endswith(SUPPORTED):
+        raise HttpError(422, "Only PDF, TXT, MD and DOCX files are supported")
     if file.size > settings.RAG_MAX_FILE_BYTES:
         raise HttpError(413, "File too large")
 
