@@ -12,6 +12,9 @@ from .counters import incr
 log = logging.getLogger(__name__)
 
 
+_OPENROUTER_FALLBACK = "meta-llama/llama-3.2-3b-instruct:free"
+
+
 class ProviderError(Exception):
     def __init__(self, msg: str, cooldown: int = 30):
         super().__init__(msg)
@@ -33,24 +36,25 @@ class Provider:
 
 
 SPECS = [
-    ("cerebras", "https://api.cerebras.ai/v1", "gemma-4-31b", None, {}),
-    ("groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", 950, {}),
-    ("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.5-flash", 1450, {}),
+    ("cerebras", "https://api.cerebras.ai/v1", "<fill from the curl above>", None, {}),
+    ("groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", 950, {}),  # fix the 401s — bad keys
+    ("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "<fill from the curl above>", 1450, {}),
     ("cloudflare", "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
      "@cf/qwen/qwen2.5-coder-32b-instruct", 9500, {}),
-    ("openrouter", "https://openrouter.ai/api/v1", "meta-llama/llama-3.3-70b-instruct:free", 180,
-     {"X-Title": "Robinhood Gateway"}),
+    ("openrouter", "https://openrouter.ai/api/v1", None, 180, {"X-Title": "Robinhood Gateway"}),
     ("huggingface", "https://router.huggingface.co/v1", "meta-llama/Llama-3.3-70B-Instruct", None, {}),
 ]
 
 
 def _build() -> list[list[Provider]]:
     groups = []
+    openrouter_model = pick_free_openrouter_model() or _OPENROUTER_FALLBACK
     for family, url, model, limit, headers in SPECS:
+        actual_model = openrouter_model if family == "openrouter" else model
         keys = settings.LLM_KEYS.get(family, [])
         group = [
             Provider(f"{family}_{i}", url.format(account_id=settings.CLOUDFLARE_ACCOUNT_ID),
-                     k, model, limit, headers)
+                     k, actual_model, limit, headers)
             for i, k in enumerate(keys)
         ]
         if group:
@@ -134,3 +138,16 @@ async def complete(messages: list[dict], max_tokens: int) -> tuple[str, str]:
             return text, p.name
     log.error("all providers failed: %s", trace)
     raise AllProvidersFailed
+
+
+def pick_free_openrouter_model() -> str | None:
+    """Ask OpenRouter which model is currently free, instead of hardcoding one that may vanish."""
+    try:
+        r = httpx.get("https://openrouter.ai/api/v1/models", timeout=10)
+        r.raise_for_status()
+        free = [m["id"] for m in r.json()["data"]
+                if m.get("pricing", {}).get("prompt") == "0"
+                and ("instruct" in m["id"].lower() or "chat" in m["id"].lower())]
+        return free[0] if free else None
+    except Exception:
+        return None
