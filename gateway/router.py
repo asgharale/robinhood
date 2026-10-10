@@ -12,6 +12,19 @@ from .counters import incr
 log = logging.getLogger(__name__)
 
 
+def pick_free_openrouter_model() -> str | None:
+    """Ask OpenRouter which model is currently free, instead of hardcoding one that may vanish."""
+    try:
+        r = httpx.get("https://openrouter.ai/api/v1/models", timeout=10)
+        r.raise_for_status()
+        free = [m["id"] for m in r.json()["data"]
+                if m.get("pricing", {}).get("prompt") == "0"
+                and ("instruct" in m["id"].lower() or "chat" in m["id"].lower())]
+        return free[0] if free else None
+    except Exception:
+        return None
+
+
 _OPENROUTER_FALLBACK = "meta-llama/llama-3.2-3b-instruct:free"
 
 
