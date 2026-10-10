@@ -13,15 +13,22 @@ log = logging.getLogger(__name__)
 
 
 def pick_free_openrouter_model() -> str | None:
-    """Ask OpenRouter which model is currently free, instead of hardcoding one that may vanish."""
     try:
         r = httpx.get("https://openrouter.ai/api/v1/models", timeout=10)
         r.raise_for_status()
-        free = [m["id"] for m in r.json()["data"]
-                if m.get("pricing", {}).get("prompt") == "0"
-                and ("instruct" in m["id"].lower() or "chat" in m["id"].lower())]
+        data = r.json().get("data", [])
+        free = []
+        for m in data:
+            price = m.get("pricing", {}).get("prompt")
+            try:
+                is_free = float(price) == 0
+            except (TypeError, ValueError):
+                is_free = False
+            if is_free:
+                free.append(m["id"])
         return free[0] if free else None
-    except Exception:
+    except Exception as e:
+        log.warning("openrouter model lookup failed: %s", e)
         return None
 
 
@@ -151,16 +158,3 @@ async def complete(messages: list[dict], max_tokens: int) -> tuple[str, str]:
             return text, p.name
     log.error("all providers failed: %s", trace)
     raise AllProvidersFailed
-
-
-def pick_free_openrouter_model() -> str | None:
-    """Ask OpenRouter which model is currently free, instead of hardcoding one that may vanish."""
-    try:
-        r = httpx.get("https://openrouter.ai/api/v1/models", timeout=10)
-        r.raise_for_status()
-        free = [m["id"] for m in r.json()["data"]
-                if m.get("pricing", {}).get("prompt") == "0"
-                and ("instruct" in m["id"].lower() or "chat" in m["id"].lower())]
-        return free[0] if free else None
-    except Exception:
-        return None
