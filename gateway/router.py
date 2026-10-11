@@ -16,17 +16,9 @@ def pick_free_openrouter_model() -> str | None:
     try:
         r = httpx.get("https://openrouter.ai/api/v1/models", timeout=10)
         r.raise_for_status()
-        data = r.json().get("data", [])
-        free = []
-        for m in data:
-            price = m.get("pricing", {}).get("prompt")
-            try:
-                is_free = float(price) == 0
-            except (TypeError, ValueError):
-                is_free = False
-            if is_free:
-                free.append(m["id"])
-        return free[0] if free else None
+        free = [m for m in r.json().get("data", []) if m["id"].endswith(":free")]
+        free.sort(key=lambda m: m.get("context_length") or 0, reverse=True)
+        return free[0]["id"] if free else None
     except Exception as e:
         log.warning("openrouter model lookup failed: %s", e)
         return None
@@ -68,6 +60,8 @@ SPECS = [
      "@cf/qwen/qwen2.5-coder-32b-instruct", 9500, {}),
 
     ("openrouter", "https://openrouter.ai/api/v1", None, 180, {"X-Title": "Robinhood Gateway"}),
+
+    ("stepfun", "https://api.stepfun.ai/v1", "step-3.7-flash", None, {}),
 
     ("huggingface", "https://router.huggingface.co/v1",
      "meta-llama/Llama-3.1-8B-Instruct", None, {}),
