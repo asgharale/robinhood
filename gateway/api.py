@@ -13,16 +13,9 @@ from .admin_api import router as admin_router
 from .models import ApiKey, Conversation
 from .services import chat_once, run_turn
 
+from .auth import ApiKeyAuth
+from .documents import router as documents_router
 
-class ApiKeyAuth(HttpBearer):
-    async def authenticate(self, request, token):
-        try:
-            key = await ApiKey.objects.aget(key=token, is_active=True, user__is_active=True)
-        except ApiKey.DoesNotExist:
-            return None
-        if await cache.aadd(f"lu:{key.id}", 1, 60):  # touch last_used_at at most once a minute
-            await ApiKey.objects.filter(pk=key.pk).aupdate(last_used_at=timezone.now())
-        return key
 
 
 api = NinjaAPI(title="Robinhood AI Gateway", version="1", auth=ApiKeyAuth())
@@ -30,6 +23,7 @@ api = NinjaAPI(title="Robinhood AI Gateway", version="1", auth=ApiKeyAuth())
 # Routers with their own auth (they ignore the API-key auth above)
 api.add_router("/admin/", admin_router)        # ADMIN_API_TOKEN
 api.add_router("/internal/", embed_router)     # INTERNAL_TOKEN, answers only in the embedder process
+api.add_router("/documents/", documents_router)   # user's own API key
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────

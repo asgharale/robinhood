@@ -10,6 +10,7 @@ from ninja.security import HttpBearer
 from .models import ApiKey, Document
 from .rag import SUPPORTED
 from .tasks import ingest_document
+from .documents import create_document, DocumentOut
 
 
 class AdminTokenAuth(HttpBearer):
@@ -43,17 +44,7 @@ async def _get_key(key_id: int) -> ApiKey:
 @router.post("/keys/{int:key_id}/documents/", response={202: DocumentOut})
 async def upload_document(request, key_id: int, file: UploadedFile = File(...)):
     key = await _get_key(key_id)
-    if not file.name.lower().endswith(SUPPORTED):
-        raise HttpError(422, "Only PDF, TXT, MD and DOCX files are supported")
-    if file.size > settings.RAG_MAX_FILE_BYTES:
-        raise HttpError(413, "File too large")
-
-    doc = await sync_to_async(Document.objects.create)(
-        api_key=key, file=file, filename=file.name, size_bytes=file.size,
-        embedding_model=settings.EMBEDDING_MODEL,
-    )
-    await sync_to_async(ingest_document.delay)(doc.id)
-    return 202, doc          # poll the list endpoint until status == "ready"
+    return 202, await create_document(key, file, enforce_quota=False)
 
 
 @router.get("/keys/{int:key_id}/documents/", response=list[DocumentOut])
