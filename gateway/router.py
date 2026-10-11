@@ -63,6 +63,8 @@ SPECS = [
 
     ("stepfun", "https://api.stepfun.ai/v1", "step-3.7-flash", None, {}),
 
+    ("requesty", "https://router.requesty.ai/v1", "google/gemma-4-31b-it", 50, {}),
+
     ("huggingface", "https://router.huggingface.co/v1",
      "meta-llama/Llama-3.1-8B-Instruct", None, {}),
 ]
@@ -128,7 +130,7 @@ async def _call(p: Provider, messages: list[dict], max_tokens: int) -> str:
 
     if r.status_code == 429:
         raise ProviderError("rate limited", 60)
-    if r.status_code in (401, 403):
+    if r.status_code in (401, 402, 403):
         raise ProviderError(f"auth/blocked HTTP {r.status_code}", 3600)
     if r.status_code >= 400:
         raise ProviderError(f"HTTP {r.status_code}: {r.text[:150]}", 30)

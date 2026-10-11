@@ -100,6 +100,7 @@ LLM_KEYS = {
     "openrouter": _keys("OPENROUTER_API_KEYS"),
     "stepfun": _keys("STEPFUN_API_KEY"),
     "huggingface": _keys("HF_TOKENS"),
+    "requesty": _keys("REQUESTY_API_KEYS"),
 }
 
 CLOUDFLARE_ACCOUNT_ID = env("CLOUDFLARE_ACCOUNT_ID", default="")
