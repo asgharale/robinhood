@@ -56,24 +56,21 @@ class Provider:
 
 
 SPECS = [
-    # 1. Cerebras: Use a valid model name
-    ("cerebras", "https://api.cerebras.ai/v1", "llama-3.3-70b", None, {}),
-    
-    # 2. Groq: Valid model name (the 401 was just a bad key, fixed in Step 1)
+    ("cerebras", "https://api.cerebras.ai/v1", "gpt-oss-120b", None, {}),
+
     ("groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", 950, {}),
-    
-    # 3. Gemini: Use a valid, free-tier compatible model name
-    ("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "gemini-1.5-flash", 1450, {}),
-    
-    # 4. Cloudflare: Already working perfectly
+
+    # flash-lite has a much larger free quota than flash
+    ("gemini", "https://generativelanguage.googleapis.com/v1beta/openai",
+     "gemini-2.5-flash-lite", 900, {}),
+
     ("cloudflare", "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
      "@cf/qwen/qwen2.5-coder-32b-instruct", 9500, {}),
-    
-    # 5. OpenRouter: Model is None here because your `pick_free_openrouter_model()` handles it dynamically
+
     ("openrouter", "https://openrouter.ai/api/v1", None, 180, {"X-Title": "Robinhood Gateway"}),
-    
-    # 6. HuggingFace: SWITCH to a genuinely free model (3B size). 70B requires paid credits now.
-    ("huggingface", "https://router.huggingface.co/v1", "meta-llama/Llama-3.2-3B-Instruct", None, {}),
+
+    ("huggingface", "https://router.huggingface.co/v1",
+     "meta-llama/Llama-3.1-8B-Instruct", None, {}),
 ]
 
 
