@@ -5,19 +5,11 @@ from celery import shared_task
 from django.conf import settings
 
 from . import rag
+from .bale import notify_admins as _notify
 from .models import Chunk, Document
 
 log = logging.getLogger(__name__)
 BATCH = 32
-
-
-def _notify(text: str) -> None:
-    """Bale message to the admin. Never lets a notification failure break ingestion."""
-    try:
-        from external.bale import BaleNotifier   # adjust to your real import path
-        BaleNotifier().notify_admin(text)        # adjust to your notifier's real method name
-    except Exception:
-        log.exception("bale notify failed")
 
 
 @shared_task(name="gateway.ingest_document", queue="ingest", acks_late=True, time_limit=4 * 3600)
@@ -27,7 +19,7 @@ def ingest_document(doc_id: int) -> None:
     except Document.DoesNotExist:
         return
 
-    Chunk.objects.filter(document=doc).delete()      # idempotent if the task is retried
+    Chunk.objects.filter(document=doc).delete()
     Document.objects.filter(pk=doc.pk).update(status=Document.Status.PROCESSING, error="")
     t0 = time.monotonic()
 

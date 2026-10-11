@@ -60,6 +60,9 @@ ASGI_APPLICATION = "robinhood.asgi.application"
 # ── Database (PostgreSQL + pgvector) ─────────────────────────────────────
 # DATABASE_URL=postgres://user:pw@127.0.0.1:5432/robinhood
 DATABASES = {"default": {**env.db("DATABASE_URL"), "CONN_MAX_AGE": 0}}
+
+DATABASES["default"].setdefault("OPTIONS", {})["options"] = "-c hnsw.iterative_scan=relaxed_order"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -141,3 +144,9 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 # must exceed the task time_limit, or long ingests get redelivered twice
 CELERY_BROKER_TRANSPORT_OPTIONS = {"visibility_timeout": 6 * 3600}
+
+BALE_BOT_TOKEN = env("TESTBOTTOKEN", default="")
+BALE_ADMIN_IDS = [
+    int(x) for x in (s.strip() for s in env.list("ADMIN_IDS", default=[]))
+    if x.lstrip("-").isdigit()
+]

@@ -52,7 +52,6 @@ SPECS = [
 
     ("groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", 950, {}),
 
-    # flash-lite has a much larger free quota than flash
     ("gemini", "https://generativelanguage.googleapis.com/v1beta/openai",
     "gemini-flash-lite-latest", 900, {}),   
 
@@ -97,7 +96,7 @@ def get_client() -> httpx.AsyncClient:
         _client = httpx.AsyncClient(
             timeout=httpx.Timeout(settings.LLM_TIMEOUT_SECONDS, connect=5.0),
             limits=httpx.Limits(max_connections=200, max_keepalive_connections=50),
-            proxy=settings.OUTBOUND_PROXY or None,  # httpx>=0.26 (older versions: proxies=)
+            proxy=settings.OUTBOUND_PROXY or None,
         )
     return _client
 
