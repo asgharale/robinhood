@@ -98,6 +98,7 @@ LLM_KEYS = {
     "gemini": _keys("GEMINI_API_KEYS"),
     "cloudflare": _keys("CLOUDFLARE_API_KEYS"),
     "openrouter": _keys("OPENROUTER_API_KEYS"),
+    "stepfun": _keys("STEPFUN_API_KEY"),
     "huggingface": _keys("HF_TOKENS"),
 }
 

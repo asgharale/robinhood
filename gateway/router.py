@@ -48,13 +48,13 @@ class Provider:
 
 
 SPECS = [
-    ("cerebras", "https://api.cerebras.ai/v1", "gpt-oss-120b", None, {}),
+    ("cerebras", "https://api.cerebras.ai/v1", "qwen-3.8-27b", None, {}),
 
     ("groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", 950, {}),
 
     # flash-lite has a much larger free quota than flash
     ("gemini", "https://generativelanguage.googleapis.com/v1beta/openai",
-     "gemini-2.5-flash-lite", 900, {}),
+    "gemini-flash-lite-latest", 900, {}),   
 
     ("cloudflare", "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
      "@cf/qwen/qwen2.5-coder-32b-instruct", 9500, {}),
