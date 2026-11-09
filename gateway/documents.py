@@ -7,13 +7,12 @@ from django.db.models import Count, Sum
 from ninja import File, Router, Schema, UploadedFile
 from ninja.errors import HttpError
 
-from .auth import ApiKeyAuth
+from .auth import USER_AUTH 
 from .models import Document
 from .rag import SUPPORTED
 from .tasks import ingest_document
 
-router = Router(auth=ApiKeyAuth(), tags=["documents"])
-
+router = Router(auth=USER_AUTH, tags=["documents"])
 
 class DocumentOut(Schema):
     id: int

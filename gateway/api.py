@@ -13,14 +13,16 @@ from .admin_api import router as admin_router
 from .models import ApiKey, Conversation
 from .services import chat_once, run_turn
 
-from .auth import ApiKeyAuth
+from .auth import USER_AUTH                      # replaces: from .auth import ApiKeyAuth
+from .auth_api import router as auth_router
 from .documents import router as documents_router
 
 
 
-api = NinjaAPI(title="Robinhood AI Gateway", version="1", auth=ApiKeyAuth())
+api = Ninapi = NinjaAPI(title="Robinhood AI Gateway", version="1", auth=USER_AUTH)
 
 # Routers with their own auth (they ignore the API-key auth above)
+api.add_router("/auth/", auth_router)
 api.add_router("/admin/", admin_router)        # ADMIN_API_TOKEN
 api.add_router("/internal/", embed_router)     # INTERNAL_TOKEN, answers only in the embedder process
 api.add_router("/documents/", documents_router)   # user's own API key

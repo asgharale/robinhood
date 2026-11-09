@@ -11,6 +11,17 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["127.0.0.1", "localhost"])
 
+# ── JWT / CORS ───────────────────────────────────────────────────────────
+JWT_SIGNING_KEY = env("JWT_SIGNING_KEY", default=SECRET_KEY)
+JWT_ISSUER = "robinhood"
+JWT_ACCESS_SECONDS = env.int("JWT_ACCESS_SECONDS", default=15 * 60)
+JWT_REFRESH_SECONDS = env.int("JWT_REFRESH_SECONDS", default=7 * 24 * 3600)
+REFRESH_COOKIE = "rh_refresh"
+REFRESH_COOKIE_PATH = "/api/v1/auth/"      # the browser sends it only to the auth endpoints
+
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=["http://localhost:3000"])
+CORS_ALLOW_CREDENTIALS = True              # needed so the browser sends the refresh cookie
+
 # ── Apps ─────────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -28,6 +39,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
